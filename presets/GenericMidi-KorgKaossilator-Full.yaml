@@ -5,10 +5,10 @@ description: "Резерв для полной раскладки (пока пу
 
 mapping:
   noteon: {}
-  noteoff: "stop"
+  noteoff:
+    action: "send"
+    message: [ cc, 92, 0 ]
 
 controls:
-  13: "y_axis"
-  90: "arp_mode"
-  91: "arp_rate"
-  93: "arp_gate"
+  13: [ cc, 13 ]  # Pass-through
+  90: [ cc, 90 ]

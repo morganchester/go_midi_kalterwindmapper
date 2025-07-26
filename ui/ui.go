@@ -16,30 +16,32 @@ import (
 )
 
 type Mapping struct {
-	InputDevice  string      `yaml:"inputDevice"`
-	OutputDevice string      `yaml:"outputDevice"`
-	Octaves      interface{} `yaml:"octaves"`
-	Description  string      `yaml:"description"`
+	InputDevice  string `yaml:"inputDevice"`
+	OutputDevice string `yaml:"outputDevice"`
+	Octaves      int    `yaml:"octaves"`
+	Description  string `yaml:"description"`
 	Mapping      struct {
-		NoteOn  map[int]int `yaml:"noteon"`
-		NoteOff string      `yaml:"noteoff"`
+		NoteOn  map[int][]interface{} `yaml:"noteon"`
+		NoteOff struct {
+			Action  string        `yaml:"action"`
+			Message []interface{} `yaml:"message"`
+		} `yaml:"noteoff"`
 	} `yaml:"mapping"`
-	Controls map[int]string `yaml:"controls"`
+	Controls map[int][]interface{} `yaml:"controls"`
 }
 
 func RunApp() {
 	a := app.New()
 	w := a.NewWindow("Kalterwind Mapper (Go Edition)")
-	w.Resize(fyne.NewSize(550, 500))
+	w.Resize(fyne.NewSize(600, 500))
 
 	// UI элементы
 	inputSelect := widget.NewSelect([]string{}, nil)
 	outputSelect := widget.NewSelect([]string{}, nil)
 	presetSelect := widget.NewSelect([]string{}, nil)
-
 	infoLabel := widget.NewLabel("Информация о пресете появится здесь")
 
-	// Загрузка пресетов
+	// Загрузка YAML пресетов
 	presets, mappings := loadPresets("./presets")
 	if len(presets) == 0 {
 		presetSelect.Options = []string{"Нет доступных пресетов"}
@@ -48,7 +50,7 @@ func RunApp() {
 		presetSelect.Options = presets
 	}
 
-	// Выбор пресета → показать инфо
+	// Выбор пресета → показать информацию
 	presetSelect.OnChanged = func(s string) {
 		if s == "" || s == "Нет доступных пресетов" {
 			infoLabel.SetText("Пресет не выбран")
@@ -56,13 +58,13 @@ func RunApp() {
 		}
 		m := mappings[s]
 		info := fmt.Sprintf(
-			"Описание: %s\nОктавы: %v\nInput: %s\nOutput: %s",
+			"Описание: %s\nОктавы: %d\nInput: %s\nOutput: %s",
 			m.Description, m.Octaves, m.InputDevice, m.OutputDevice,
 		)
 		infoLabel.SetText(info)
 	}
 
-	// Кнопка обновления устройств
+	// Кнопка обновления списка устройств
 	refreshBtn := widget.NewButton("Обновить устройства", func() {
 		ins, outs := midi.GetDevices()
 		if len(ins) == 0 {
@@ -85,19 +87,41 @@ func RunApp() {
 		outputSelect.Refresh()
 	})
 
-	// Кнопка запуска
+	// Кнопка запуска маршрутизации
 	startBtn := widget.NewButton("Запустить", func() {
 		selPreset := presetSelect.Selected
 		selIn := inputSelect.Selected
 		selOut := outputSelect.Selected
 
-		fmt.Println("Выбранный пресет:", selPreset)
-		fmt.Println("Вход:", selIn)
-		fmt.Println("Выход:", selOut)
-
 		if strings.Contains(selIn, "Нет") || strings.Contains(selOut, "Нет") {
-			fmt.Println("Невозможно запустить: нет устройств")
+			infoLabel.SetText("Невозможно запустить: нет устройств")
 			return
+		}
+		if selPreset == "" || selPreset == "Нет доступных пресетов" {
+			infoLabel.SetText("Выберите пресет")
+			return
+		}
+
+		inIdx, outIdx := midi.FindDeviceIndexes(selIn, selOut)
+		if inIdx == -1 || outIdx == -1 {
+			infoLabel.SetText("Устройства не найдены")
+			return
+		}
+
+		// Конвертация в структуру из midi/processor.go
+		m := mappings[selPreset]
+		mapping := midi.Mapping{
+			NoteOn:   m.Mapping.NoteOn,
+			NoteOff:  midi.NoteOffAction{Action: m.Mapping.NoteOff.Action, Message: m.Mapping.NoteOff.Message},
+			Controls: m.Controls,
+		}
+
+		processor := midi.NewProcessor()
+		err := processor.Start(inIdx, outIdx, mapping)
+		if err != nil {
+			infoLabel.SetText(fmt.Sprintf("Ошибка: %v", err))
+		} else {
+			infoLabel.SetText("Маршрутизация запущена!")
 		}
 	})
 
@@ -118,6 +142,7 @@ func RunApp() {
 	w.ShowAndRun()
 }
 
+// Загрузка YAML-файлов из ./presets
 func loadPresets(path string) ([]string, map[string]Mapping) {
 	var presets []string
 	mappings := make(map[string]Mapping)
