@@ -1,0 +1,39 @@
+inputDevice: "GenericMidi"
+outputDevice: "Korg Kaossilator"
+octaves: 2
+description: "Хроматическая гамма, 2 октавы"
+
+mapping:
+  noteon:
+    60: 5
+    61: 9
+    62: 14
+    63: 19
+    64: 24
+    65: 29
+    66: 34
+    67: 39
+    68: 45
+    69: 50
+    70: 55
+    71: 59
+    72: 65
+    73: 70
+    74: 75
+    75: 80
+    76: 85
+    77: 92
+    78: 96
+    79: 101
+    80: 106
+    81: 112
+    82: 116
+    83: 122
+    84: 127
+  noteoff: "stop"
+
+controls:
+  13: "y_axis"
+  90: "arp_mode"
+  91: "arp_rate"
+  93: "arp_gate"

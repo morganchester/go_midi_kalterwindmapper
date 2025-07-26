@@ -1,0 +1,14 @@
+inputDevice: "GenericMidi"
+outputDevice: "Korg Kaossilator"
+octaves: "full"
+description: "Резерв для полной раскладки (пока пусто)"
+
+mapping:
+  noteon: {}
+  noteoff: "stop"
+
+controls:
+  13: "y_axis"
+  90: "arp_mode"
+  91: "arp_rate"
+  93: "arp_gate"
